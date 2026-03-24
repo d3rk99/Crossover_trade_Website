@@ -20,13 +20,16 @@ const CONFIG = {
   gid: "2038072277",
   publishedDocUrl:
     "https://docs.google.com/spreadsheets/d/e/2PACX-1vTDlLOzWU88kePqpnHktdWqCqepvHY7KWDNQz1i1mOH_jE8nVhs6v3KNCVh8Nf8fldkHGDvw5BL29yE/pubhtml#gid=2038072277",
+  // Optional: manually list tab gids when auto-discovery is blocked by browser/CORS.
+  publishedTabGids: ["2038072277"],
   // Live mode by default.
   useMockData: false,
-  // Scan all published tabs and infer year from tab names (e.g. "2024", "2025").
-  useAllTabsAsYears: true,
-  sourceType: "gviz", // "gviz" or "csv"
+  // Keep false by default for reliability; set true once you add tab gids or discovery works.
+  useAllTabsAsYears: false,
+  sourceType: "csv", // "gviz" or "csv"
   sheetName: "",
-  publishedUrl: "", // Optional: full published CSV URL
+  publishedUrl:
+    "https://docs.google.com/spreadsheets/d/e/2PACX-1vTDlLOzWU88kePqpnHktdWqCqepvHY7KWDNQz1i1mOH_jE8nVhs6v3KNCVh8Nf8fldkHGDvw5BL29yE/pub?gid=2038072277&single=true&output=csv",
   columnMappings: {
     date: ["date", "trade_date"],
     month: ["month"],
@@ -186,9 +189,19 @@ async function fetchSheetData() {
 }
 
 async function fetchAllTabsFromPublishedDoc(pubhtmlUrl) {
-  const tabs = await discoverPublishedTabs(pubhtmlUrl);
+  let tabs = [];
+  try {
+    tabs = await discoverPublishedTabs(pubhtmlUrl);
+  } catch (error) {
+    console.warn("Tab discovery failed, falling back to CONFIG.publishedTabGids", error);
+  }
+
+  if (!tabs.length && Array.isArray(CONFIG.publishedTabGids) && CONFIG.publishedTabGids.length) {
+    tabs = CONFIG.publishedTabGids.map((gid) => ({ gid: String(gid), name: `Tab ${gid}` }));
+  }
+
   if (!tabs.length) {
-    throw new Error("No published tabs were discovered from pubhtml URL");
+    throw new Error("No published tabs available. Add CONFIG.publishedTabGids manually.");
   }
 
   const allTabObjects = [];

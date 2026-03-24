@@ -23,6 +23,7 @@ Given a sheet URL like:
 2. Pick one live mode:
    - **Single tab mode**: set `CONFIG.sheetId` + `CONFIG.gid`.
    - **All tabs as years mode**: set `CONFIG.publishedDocUrl` to your `/pubhtml` link and set `CONFIG.useAllTabsAsYears = true`.
+     - If browser tab auto-discovery fails, add tab gids in `CONFIG.publishedTabGids`.
 3. Set `CONFIG.useMockData = false`.
 4. If using single tab mode, choose `CONFIG.sourceType = "gviz"` (recommended) or `"csv"`.
 5. Reload the page.
@@ -32,6 +33,7 @@ Given a sheet URL like:
 - Name tabs with a 4-digit year (for example: `2023`, `2024`, `2025`) so year inference is automatic.
 - The app will:
   - discover all published tabs from the `pubhtml` page,
+  - or use `publishedTabGids` as a fallback list when discovery is blocked,
   - fetch each tab as CSV,
   - merge rows into one dataset,
   - infer `year` from tab names when row-level year is missing.
