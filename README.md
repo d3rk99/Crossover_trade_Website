@@ -20,10 +20,21 @@ Given a sheet URL like:
 
 ### How to switch from mock mode to live mode
 1. Open `app.js`.
-2. Update `CONFIG.sheetId` and `CONFIG.gid`.
+2. Pick one live mode:
+   - **Single tab mode**: set `CONFIG.sheetId` + `CONFIG.gid`.
+   - **All tabs as years mode**: set `CONFIG.publishedDocUrl` to your `/pubhtml` link and set `CONFIG.useAllTabsAsYears = true`.
 3. Set `CONFIG.useMockData = false`.
-4. Choose `CONFIG.sourceType = "gviz"` (recommended) or `"csv"`.
+4. If using single tab mode, choose `CONFIG.sourceType = "gviz"` (recommended) or `"csv"`.
 5. Reload the page.
+
+### Using different Google Sheet tabs for different years
+- Yes — this starter supports reading the entire published workbook and treating tabs like year buckets.
+- Name tabs with a 4-digit year (for example: `2023`, `2024`, `2025`) so year inference is automatic.
+- The app will:
+  - discover all published tabs from the `pubhtml` page,
+  - fetch each tab as CSV,
+  - merge rows into one dataset,
+  - infer `year` from tab names when row-level year is missing.
 
 ### How to host the site
 Because this is static, you can host on:

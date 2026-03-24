@@ -3,12 +3,13 @@
 Google Sheets Dashboard Setup Guide
 ============================================================
 1) In Google Sheets: File -> Share -> Publish to web.
-2) Publish the specific tab that contains your trading data.
+2) Publish the entire document if you want multi-year tabs.
 3) Copy your Sheet ID from the URL:
    https://docs.google.com/spreadsheets/d/<SHEET_ID>/edit#gid=<GID>
-4) Copy gid from the URL after #gid=
-5) Update CONFIG.sheetId, CONFIG.gid, and CONFIG.useMockData below.
-6) Choose CONFIG.sourceType: "gviz" (recommended) or "csv".
+4) For "published link mode", copy your /pubhtml URL instead.
+5) Update CONFIG.sheetId or CONFIG.publishedDocUrl, then set useMockData.
+6) Set CONFIG.useAllTabsAsYears = true to read every published tab.
+7) Choose CONFIG.sourceType: "gviz" (recommended) or "csv".
 7) Keep mock mode ON while styling, then set useMockData = false.
 ============================================================
 */
@@ -18,8 +19,14 @@ const CONFIG = {
   sheetId: "REPLACE_ME",
   // TODO: Insert your specific tab GID
   gid: "REPLACE_ME",
+  // TODO: Paste your full published doc URL if using /pubhtml mode.
+  // Example: https://docs.google.com/spreadsheets/d/e/.../pubhtml#gid=0
+  publishedDocUrl:
+    "https://docs.google.com/spreadsheets/d/e/2PACX-1vTDlLOzWU88kePqpnHktdWqCqepvHY7KWDNQz1i1mOH_jE8nVhs6v3KNCVh8Nf8fldkHGDvw5BL29yE/pubhtml#gid=2038072277",
   // TODO: Switch to false to fetch live data
   useMockData: true,
+  // TODO: Set true to scan all published tabs and infer year from tab names (e.g. "2024", "2025")
+  useAllTabsAsYears: false,
   sourceType: "gviz", // "gviz" or "csv"
   sheetName: "",
   publishedUrl: "", // Optional: full published CSV URL
@@ -42,7 +49,9 @@ const CONFIG = {
     endMarketWins: ["end_of_market_wins", "eom_wins"],
     fullTargetWins: ["full_target_wins"],
     notes: ["notes", "comment"],
-    trader: ["trader", "name"]
+    trader: ["trader", "name"],
+    tabYear: ["tab_year", "__tab_year"],
+    sourceTab: ["source_tab", "__tab_name", "tab_name"]
   }
 };
 
@@ -148,11 +157,17 @@ function bindEvents() {
 async function fetchSheetData() {
   if (CONFIG.useMockData) return MOCK_SHEET_ROWS;
 
-  if (!CONFIG.sheetId || CONFIG.sheetId === "REPLACE_ME") {
-    throw new Error("Missing CONFIG.sheetId");
+  if (CONFIG.useAllTabsAsYears) {
+    if (!CONFIG.publishedDocUrl) {
+      throw new Error("Missing CONFIG.publishedDocUrl for all-tabs mode");
+    }
+    return fetchAllTabsFromPublishedDoc(CONFIG.publishedDocUrl);
   }
 
   if (CONFIG.sourceType === "csv") {
+    if (!CONFIG.sheetId || CONFIG.sheetId === "REPLACE_ME") {
+      throw new Error("Missing CONFIG.sheetId");
+    }
     const csvUrl =
       CONFIG.publishedUrl ||
       `https://docs.google.com/spreadsheets/d/${CONFIG.sheetId}/export?format=csv&gid=${CONFIG.gid}`;
@@ -162,11 +177,88 @@ async function fetchSheetData() {
     return parseCsv(text);
   }
 
+  if (!CONFIG.sheetId || CONFIG.sheetId === "REPLACE_ME") {
+    throw new Error("Missing CONFIG.sheetId");
+  }
+
   const gvizUrl = `https://docs.google.com/spreadsheets/d/${CONFIG.sheetId}/gviz/tq?gid=${CONFIG.gid}`;
   const response = await fetch(gvizUrl);
   if (!response.ok) throw new Error("Failed to fetch GViz");
   const text = await response.text();
   return parseGviz(text);
+}
+
+async function fetchAllTabsFromPublishedDoc(pubhtmlUrl) {
+  const tabs = await discoverPublishedTabs(pubhtmlUrl);
+  if (!tabs.length) {
+    throw new Error("No published tabs were discovered from pubhtml URL");
+  }
+
+  const allTabObjects = [];
+
+  for (const tab of tabs) {
+    const csvUrl = buildPublishedTabCsvUrl(pubhtmlUrl, tab.gid);
+    const response = await fetch(csvUrl);
+    if (!response.ok) {
+      console.warn(`Skipping tab "${tab.name}" (${tab.gid}) due to fetch error.`);
+      continue;
+    }
+
+    const text = await response.text();
+    const rows = parseCsv(text);
+    if (!rows.length) continue;
+
+    const records = rowsToObjects(rows, {
+      sourceTab: tab.name,
+      tabYear: inferYearFromTabName(tab.name)
+    });
+    allTabObjects.push(...records);
+  }
+
+  if (!allTabObjects.length) {
+    throw new Error("All published tabs failed to load or were empty");
+  }
+
+  return objectsToRows(allTabObjects);
+}
+
+async function discoverPublishedTabs(pubhtmlUrl) {
+  const response = await fetch(pubhtmlUrl);
+  if (!response.ok) throw new Error("Failed to fetch published tab index");
+  const html = await response.text();
+
+  const parser = new DOMParser();
+  const doc = parser.parseFromString(html, "text/html");
+
+  const tabCandidates = [];
+  const links = [...doc.querySelectorAll("a[href*='gid=']")];
+  links.forEach((link) => {
+    const href = link.getAttribute("href") || "";
+    const name = (link.textContent || "").trim();
+    const gidMatch = href.match(/gid=(\d+)/);
+    if (!gidMatch) return;
+    const gid = gidMatch[1];
+    if (!gid || !name) return;
+    tabCandidates.push({ gid, name });
+  });
+
+  const deduped = new Map();
+  tabCandidates.forEach((tab) => {
+    if (!deduped.has(tab.gid)) deduped.set(tab.gid, tab);
+  });
+
+  return [...deduped.values()];
+}
+
+function buildPublishedTabCsvUrl(pubhtmlUrl, gid) {
+  const clean = pubhtmlUrl.split("#")[0];
+  const base = clean.replace(/\/pubhtml(?:\?.*)?$/i, "/pub");
+  return `${base}?gid=${gid}&single=true&output=csv`;
+}
+
+function inferYearFromTabName(name) {
+  const match = String(name || "").match(/\b(19|20)\d{2}\b/);
+  return match ? match[0] : "";
 }
 
 function parseGviz(payload) {
@@ -195,6 +287,40 @@ function parseCsv(csvText) {
         .split(",")
         .map((cell) => cell.replace(/^"|"$/g, "").replace(/""/g, '"').trim())
     );
+}
+
+function rowsToObjects(rows, tabMeta = {}) {
+  const [headers = [], ...dataRows] = rows;
+  const normalizedHeaders = headers.map((header, idx) => normalizeHeader(header) || `col_${idx}`);
+
+  return dataRows
+    .filter((row) => row.some((cell) => String(cell || "").trim()))
+    .map((row) => {
+      const obj = {};
+      normalizedHeaders.forEach((key, i) => {
+        obj[key] = row[i] ?? "";
+      });
+      obj.__tab_name = tabMeta.sourceTab || "";
+      obj.__tab_year = tabMeta.tabYear || "";
+      return obj;
+    });
+}
+
+function objectsToRows(items) {
+  const headers = [];
+  const seen = new Set();
+
+  items.forEach((item) => {
+    Object.keys(item).forEach((key) => {
+      if (!seen.has(key)) {
+        seen.add(key);
+        headers.push(key);
+      }
+    });
+  });
+
+  const rows = items.map((item) => headers.map((header) => item[header] ?? ""));
+  return [headers, ...rows];
 }
 
 function normalizeTradeData(rows) {
@@ -227,6 +353,7 @@ function mapRowToRecord(row, headerMap) {
   const dateRaw = get("date");
   const monthRaw = get("month");
   const yearRaw = get("year");
+  const tabYearRaw = get("tabYear");
 
   const dateObj = parseDate(dateRaw, monthRaw, yearRaw);
   const month = normalizeMonth(monthRaw || (dateObj ? MONTHS[dateObj.getMonth()] : ""));
@@ -250,8 +377,12 @@ function mapRowToRecord(row, headerMap) {
     fullTargetWins: toInteger(get("fullTargetWins")),
     notes: get("notes") || "",
     trader: get("trader") || "Unknown",
+    sourceTab: get("sourceTab") || "",
     month,
-    year: toInteger(yearRaw) || (dateObj ? dateObj.getFullYear() : new Date().getFullYear())
+    year:
+      toInteger(yearRaw) ||
+      toInteger(tabYearRaw) ||
+      (dateObj ? dateObj.getFullYear() : new Date().getFullYear())
   };
 
   if (!record.net && record.profit && record.loss) {
@@ -452,6 +583,7 @@ function renderTables(records) {
         <td class="positive">${formatMoney(r.profit)}</td>
         <td class="negative">${formatMoney(r.loss)}</td>
         <td class="${r.net >= 0 ? "positive" : "negative"}">${formatMoney(r.net)}</td>
+        <td>${r.sourceTab || "--"}</td>
         <td>${r.notes || "--"}</td>
       </tr>
     `
@@ -593,9 +725,9 @@ function exportRecordsAsCsv(records, filename) {
     return;
   }
 
-  const headers = ["Date", "Day", "Time", "Result", "Profit", "Loss", "Net", "Month", "Year", "Trader", "Notes"];
+  const headers = ["Date", "Day", "Time", "Result", "Profit", "Loss", "Net", "Month", "Year", "Trader", "Source Tab", "Notes"];
   const lines = records.map((r) =>
-    [r.date, r.day, r.time, r.result, r.profit, r.loss, r.net, r.month, r.year, r.trader, r.notes]
+    [r.date, r.day, r.time, r.result, r.profit, r.loss, r.net, r.month, r.year, r.trader, r.sourceTab, r.notes]
       .map(csvEscape)
       .join(",")
   );
