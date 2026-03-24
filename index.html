@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Crossover Trader Dashboard</title>
+    <meta
+      name="description"
+      content="Professional trading dashboard powered by Google Sheets."
+    />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <div class="app-shell">
+      <header class="topbar panel">
+        <div class="brand">
+          <p class="eyebrow">Performance Console</p>
+          <h1>Trader Dashboard</h1>
+          <p class="subtitle">NASDAQ Crossover Trade Dashboard</p>
+          <p class="updated">Last updated: <span id="lastUpdated">--</span></p>
+        </div>
+
+        <div class="filters" aria-label="Dashboard filters">
+          <label>
+            <span>Year</span>
+            <select id="yearFilter">
+              <option value="all">All Years</option>
+            </select>
+          </label>
+
+          <label>
+            <span>Month</span>
+            <select id="monthFilter">
+              <option value="all">All Months</option>
+            </select>
+          </label>
+
+          <label>
+            <span>Trader</span>
+            <select id="traderFilter">
+              <option value="all">All Traders</option>
+            </select>
+          </label>
+        </div>
+      </header>
+
+      <main>
+        <section class="kpi-grid" id="kpiGrid" aria-label="Key metrics"></section>
+
+        <section class="chart-grid">
+          <article class="panel chart-panel chart-panel-lg">
+            <div class="panel-header">
+              <h2>Equity Curve</h2>
+              <p>Cumulative progression of filtered net results.</p>
+            </div>
+            <div class="chart-wrap"><canvas id="equityChart"></canvas></div>
+          </article>
+
+          <article class="panel chart-panel">
+            <div class="panel-header">
+              <h2>Drawdown</h2>
+              <p>Running drawdown over time.</p>
+            </div>
+            <div class="chart-wrap"><canvas id="drawdownChart"></canvas></div>
+          </article>
+        </section>
+
+        <section class="chart-grid chart-grid-2">
+          <article class="panel chart-panel">
+            <div class="panel-header">
+              <h2>Monthly Net</h2>
+              <p>Net P&amp;L grouped by month.</p>
+            </div>
+            <div class="chart-wrap"><canvas id="monthlyNetChart"></canvas></div>
+          </article>
+
+          <article class="panel chart-panel">
+            <div class="panel-header">
+              <h2>Win Rate by Month</h2>
+              <p>Consistency and quality by month.</p>
+            </div>
+            <div class="chart-wrap"><canvas id="winRateChart"></canvas></div>
+          </article>
+        </section>
+
+        <section class="table-grid">
+          <article class="panel table-panel">
+            <div class="panel-header table-actions">
+              <div>
+                <h2>Recent Trades</h2>
+                <p>Latest records from your filtered data.</p>
+              </div>
+              <button id="exportTradesBtn" class="btn-secondary" type="button">
+                Export CSV
+              </button>
+            </div>
+            <div class="table-wrap">
+              <table id="recentTradesTable">
+                <thead>
+                  <tr>
+                    <th>Date</th>
+                    <th>Day</th>
+                    <th>Time</th>
+                    <th>Result</th>
+                    <th>Gross +</th>
+                    <th>Gross -</th>
+                    <th>Net</th>
+                    <th>Source Tab</th>
+                    <th>Notes</th>
+                  </tr>
+                </thead>
+                <tbody></tbody>
+              </table>
+            </div>
+          </article>
+
+          <article class="panel table-panel">
+            <div class="panel-header table-actions">
+              <div>
+                <h2>Monthly Summary</h2>
+                <p>Wins, losses, net and drawdown by month.</p>
+              </div>
+              <button id="sortSummaryBtn" class="btn-secondary" type="button">
+                Sort: Newest First
+              </button>
+            </div>
+            <div class="table-wrap">
+              <table id="monthlySummaryTable">
+                <thead>
+                  <tr>
+                    <th>Month</th>
+                    <th>Wins</th>
+                    <th>Losses</th>
+                    <th>Net</th>
+                    <th>Win Rate</th>
+                    <th>Drawdown</th>
+                  </tr>
+                </thead>
+                <tbody></tbody>
+              </table>
+            </div>
+          </article>
+        </section>
+      </main>
+    </div>
+
+    <div id="appMessage" class="app-message" hidden></div>
+
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+    <script src="app.js"></script>
+  </body>
+</html>
