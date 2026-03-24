@@ -15,18 +15,15 @@ Google Sheets Dashboard Setup Guide
 */
 
 const CONFIG = {
-  // TODO: Insert your Google Sheet ID
-  sheetId: "REPLACE_ME",
-  // TODO: Insert your specific tab GID
-  gid: "REPLACE_ME",
-  // TODO: Paste your full published doc URL if using /pubhtml mode.
-  // Example: https://docs.google.com/spreadsheets/d/e/.../pubhtml#gid=0
+  // Hard-baked sheet publish ID / tab ID from your provided document.
+  sheetId: "2PACX-1vTDlLOzWU88kePqpnHktdWqCqepvHY7KWDNQz1i1mOH_jE8nVhs6v3KNCVh8Nf8fldkHGDvw5BL29yE",
+  gid: "2038072277",
   publishedDocUrl:
     "https://docs.google.com/spreadsheets/d/e/2PACX-1vTDlLOzWU88kePqpnHktdWqCqepvHY7KWDNQz1i1mOH_jE8nVhs6v3KNCVh8Nf8fldkHGDvw5BL29yE/pubhtml#gid=2038072277",
-  // TODO: Switch to false to fetch live data
-  useMockData: true,
-  // TODO: Set true to scan all published tabs and infer year from tab names (e.g. "2024", "2025")
-  useAllTabsAsYears: false,
+  // Live mode by default.
+  useMockData: false,
+  // Scan all published tabs and infer year from tab names (e.g. "2024", "2025").
+  useAllTabsAsYears: true,
   sourceType: "gviz", // "gviz" or "csv"
   sheetName: "",
   publishedUrl: "", // Optional: full published CSV URL
